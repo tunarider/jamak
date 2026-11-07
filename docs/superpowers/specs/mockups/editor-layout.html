@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jamak 편집기</title>
+<style>
+:root{
+  --win:#16181c; --panel:#1e2126; --panel2:#24282e; --line:#2f343c; --line2:#3a4049;
+  --text:#e7e4dd; --dim:#8d929b; --faint:#5d636c;
+  --speech:#5b9bd5; --sound:#d9a441; --screen:#a67fe0; --warn:#e5584f;
+  --sel:rgba(245,226,122,.16); --selEdge:#f5e27a;
+  --ui:-apple-system,"SF Pro Text","Apple SD Gothic Neo","Hiragino Sans",system-ui,sans-serif;
+  --tc:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#0f1013;color:var(--text);font:13px/1.4 var(--ui);-webkit-font-smoothing:antialiased}
+body{padding:24px;min-height:100vh}
+.note{max-width:1180px;margin:0 auto 14px;color:var(--dim);font-size:13px}
+.note b{color:var(--text);font-weight:600}
+.win{max-width:1180px;margin:0 auto;background:var(--win);border:1px solid #2a2e35;border-radius:11px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+
+/* title + toolbar */
+.titlebar{display:flex;align-items:center;gap:14px;height:46px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.lights i:nth-child(2){background:#febc2e}.lights i:nth-child(3){background:#28c840}
+.doc{font-weight:600;font-size:13px}.doc span{color:var(--dim);font-weight:400;margin-left:6px}
+.tools{display:flex;gap:6px;margin-left:auto;align-items:center}
+.btn{height:28px;padding:0 11px;border-radius:6px;border:1px solid var(--line2);background:var(--panel2);color:var(--text);font:500 12.5px var(--ui);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.btn:hover{background:#2c3138}
+.btn:focus-visible,.sel:focus-visible{outline:2px solid var(--selEdge);outline-offset:1px}
+.btn.primary{background:#3a5f86;border-color:#4a75a3}
+.btn.primary:hover{background:#43709d}
+.group{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.group .btn{border:0;border-radius:0}
+.group .sel{border:0;border-left:1px solid var(--line2);border-radius:0;height:28px}
+.sel{height:26px;background:var(--panel2);color:var(--text);border:1px solid var(--line2);border-radius:6px;font:12.5px var(--ui);padding:0 8px}
+.sep{width:1px;height:20px;background:var(--line2);margin:0 4px}
+
+/* video */
+.stage{position:relative;background:#000;aspect-ratio:2.39/1;max-height:420px;width:100%;overflow:hidden}
+.scene{position:absolute;inset:0;background:linear-gradient(180deg,#3d4a5c 0%,#6b7787 46%,#2b3036 47%,#1a1d21 100%)}
+.scene .pier{position:absolute;left:8%;right:44%;bottom:20%;height:9%;background:#14171a}
+.scene .crane{position:absolute;left:62%;bottom:53%;width:4px;height:30%;background:#14171a}
+.scene .crane:after{content:"";position:absolute;top:0;left:-50px;width:120px;height:4px;background:#14171a}
+.scene .sign{position:absolute;left:18%;bottom:30%;padding:6px 10px;background:#c9c2a8;color:#2a2620;font:700 15px "Hiragino Mincho ProN",serif;letter-spacing:.08em;border:2px solid #2a2620;transition:opacity .2s}
+.scene .flash{position:absolute;inset:0;background:radial-gradient(circle at 70% 48%,rgba(255,210,140,.75),transparent 40%);opacity:0;transition:opacity .1s}
+.subs{position:absolute;left:0;right:0;bottom:7%;display:flex;flex-direction:column;align-items:center;gap:4px;pointer-events:none}
+.subs div{font:600 21px var(--ui);color:#fff;text-shadow:0 0 4px #000,0 2px 2px #000;padding:0 10px}
+.subs div.screen{font-size:15px;color:#e6dcff}
+.subs div.sound{font-size:16px;color:#ffe6b0}
+.tcbig{position:absolute;right:12px;top:10px;font:12px var(--tc);color:#cfd3d9;background:rgba(0,0,0,.5);padding:3px 7px;border-radius:4px}
+
+/* set bar */
+.setbar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.setbar label{color:var(--dim);font-size:12px}
+.legend{display:flex;gap:14px;margin-left:auto;color:var(--dim);font-size:12px}
+.legend span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:var(--c)}
+.dirty{color:var(--sound);font-size:12px;display:none}
+.dirty.on{display:inline}
+
+/* timeline */
+.tl{display:grid;grid-template-columns:96px 1fr;background:var(--win);position:relative}
+.heads{border-right:1px solid var(--line);background:var(--panel)}
+.heads .h{height:44px;display:flex;align-items:center;padding:0 12px;color:var(--dim);font-size:12px;border-bottom:1px solid var(--line)}
+.heads .h.ruler-h{height:30px;font:11px var(--tc);color:var(--faint)}
+.heads .add{height:30px;display:flex;align-items:center;padding:0 12px;color:var(--dim);font-size:12px;cursor:pointer}
+.heads .add:hover{color:var(--text)}
+.scroll{overflow-x:auto;position:relative}
+.track-wrap{position:relative}
+.ruler{height:30px;position:relative;border-bottom:1px solid var(--line);background:var(--panel);cursor:crosshair;user-select:none}
+.ruler .tick{position:absolute;top:0;bottom:0;border-left:1px solid var(--line2)}
+.ruler .tick.minor{top:20px}
+.ruler .tick b{position:absolute;top:4px;left:4px;font:500 10.5px var(--tc);color:var(--dim)}
+.lane{height:44px;position:relative;border-bottom:1px solid var(--line);background:repeating-linear-gradient(90deg,transparent 0 59px,rgba(255,255,255,.025) 59px 60px)}
+.lane.ghost{height:30px;background:none}
+.clip{position:absolute;top:6px;height:32px;border-radius:5px;background:color-mix(in srgb,var(--c) 28%,#1b1e22);border:1px solid color-mix(in srgb,var(--c) 70%,transparent);color:var(--text);font-size:12.5px;display:flex;align-items:center;padding:0 10px;white-space:nowrap;overflow:hidden;cursor:grab;user-select:none}
+.clip:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.clip .t{overflow:hidden;text-overflow:ellipsis}
+.clip .kind{font-size:10.5px;color:var(--c);margin-right:7px;flex:none}
+.clip.speech{--c:var(--speech)}.clip.sound{--c:var(--sound)}.clip.screen{--c:var(--screen)}
+.clip.selected{box-shadow:0 0 0 2px var(--selEdge);z-index:2}
+.clip.warn{border-color:var(--warn)}
+.clip.warn .flag{flex:none;margin-left:7px;width:16px;height:16px;border-radius:50%;background:var(--warn);color:#fff;font:700 11px/16px var(--ui);text-align:center}
+.clip .grip{position:absolute;top:0;bottom:0;width:7px;cursor:ew-resize}
+.clip .grip.l{left:0}.clip .grip.r{right:0}
+.clip .grip:hover{background:rgba(255,255,255,.15)}
+.clip:focus-visible{outline:2px solid var(--selEdge)}
+.range{position:absolute;top:0;bottom:0;background:var(--sel);border-left:1px solid var(--selEdge);border-right:1px solid var(--selEdge);pointer-events:none;display:none;z-index:3}
+.playhead{position:absolute;top:0;bottom:0;width:0;border-left:1.5px solid #fff;z-index:4;pointer-events:none}
+.playhead:before{content:"";position:absolute;top:0;left:-6px;border:6px solid transparent;border-top:8px solid #fff}
+
+/* range popover + inspector */
+.pop{position:absolute;z-index:6;display:none;background:#2a2e35;border:1px solid var(--line2);border-radius:8px;padding:8px;box-shadow:0 10px 30px rgba(0,0,0,.45);gap:6px;align-items:center;white-space:nowrap}
+.pop .rt{font:11.5px var(--tc);color:var(--dim);margin:0 6px 0 2px}
+.insp{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;padding:12px 14px;background:var(--panel);border-top:1px solid var(--line);min-height:84px}
+.insp .meta{font:12px var(--tc);color:var(--dim);line-height:1.7}
+.insp textarea{width:100%;min-height:52px;resize:vertical;background:var(--win);border:1px solid var(--line2);border-radius:6px;color:var(--text);font:14px var(--ui);padding:8px 10px}
+.insp textarea:focus{outline:2px solid var(--selEdge);outline-offset:-1px}
+.insp .empty{color:var(--dim);grid-column:1/-1;align-self:center}
+.verify{grid-column:1/-1;display:none;gap:10px;align-items:center;padding:8px 10px;border-radius:6px;background:rgba(229,88,79,.1);border:1px solid rgba(229,88,79,.35);font-size:12.5px}
+.verify.on{display:flex}
+.verify .thumb{width:72px;height:30px;border-radius:3px;background:radial-gradient(circle at 70% 48%,#f3c98c,transparent 45%),linear-gradient(180deg,#3d4a5c,#2b3036)}
+.verify .acts{margin-left:auto;display:flex;gap:6px}
+.status{display:flex;gap:16px;padding:6px 14px;background:#1a1c20;border-top:1px solid var(--line);color:var(--faint);font-size:11.5px}
+.status .job{color:var(--dim)}
+.status .job:before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:#6fbf73;margin-right:6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<p class="note"><b>편집기 레이아웃 초안.</b> 직접 만져볼 수 있어요 — 자막 조각을 끌어서 이동, 양 끝을 끌어서 길이 조정, 눈금자를 끌어서 구간 선택, 조각을 클릭해 아래에서 문장 수정, 자막셋 셀렉트로 원본/번역 전환, 재생 버튼 또는 스페이스바로 재생.</p>
+
+<div class="win">
+  <div class="titlebar">
+    <div class="lights"><i></i><i></i><i></i></div>
+    <div class="doc">港の夏.mkv<span>1:52:08</span></div>
+    <div class="tools">
+      <button class="btn">영상 파일 열기</button>
+      <button class="btn primary">전체 자막 생성</button>
+      <div class="sep"></div>
+      <div class="group">
+        <button class="btn">자막 번역</button>
+        <select class="sel" aria-label="번역할 언어"><option>한국어</option><option>영어</option><option>중국어(간체)</option></select>
+      </div>
+      <div class="sep"></div>
+      <button class="btn" id="play" aria-label="재생">▶ 재생</button>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="scene">
+      <div class="pier"></div><div class="crane"></div>
+      <div class="sign" id="sign">第三埠頭　立入禁止</div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <div class="subs" id="subs"></div>
+    <div class="tcbig" id="tcbig">00:00:00.000</div>
+  </div>
+
+  <div class="setbar">
+    <label for="set">자막셋</label>
+    <select class="sel" id="set">
+      <option value="ja">일본어 · 원본 (港の夏.ja.srt)</option>
+      <option value="ko" selected>한국어 · 일본어에서 번역 (港の夏.ko.srt)</option>
+    </select>
+    <span class="dirty" id="dirty">● 저장 안 된 변경</span>
+    <div class="legend">
+      <span style="--c:var(--speech)">음성</span>
+      <span style="--c:var(--sound)">소리</span>
+      <span style="--c:var(--screen)">화면</span>
+    </div>
+  </div>
+
+  <div class="tl">
+    <div class="heads" id="heads"></div>
+    <div class="scroll" id="scroll">
+      <div class="track-wrap" id="wrap">
+        <div class="ruler" id="ruler"></div>
+        <div id="lanes"></div>
+        <div class="range" id="range"></div>
+        <div class="playhead" id="ph"></div>
+        <div class="pop" id="pop">
+          <span class="rt" id="rt"></span>
+          <button class="btn">이 구간 다시 듣고 받아쓰기</button>
+          <button class="btn">화면 글자 찾기</button>
+          <button class="btn">이 구간만 번역</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="insp" id="insp"></div>
+  <div class="status"><span class="job">전체 자막 생성 완료 · 받아쓰기 412문장 · 화면 글자 37개 · 검증 의심 9개</span><span>⌘S 저장 · Space 재생 · ⌫ 조각 삭제</span></div>
+</div>
+
+<script>
+const PX=60, DUR=22;
+const KIND={speech:"음성",sound:"소리",screen:"화면"};
+const data={
+ ja:[
+  {id:1,ch:0,s:.8,e:3.2,k:"speech",t:"おはようございます"},
+  {id:2,ch:1,s:2.6,e:4.9,k:"speech",t:"はい、おはようございます"},
+  {id:3,ch:0,s:5.2,e:7.6,k:"speech",t:"今日も暑いですね"},
+  {id:4,ch:2,s:6.0,e:10.2,k:"screen",t:"第三埠頭　立入禁止"},
+  {id:5,ch:1,s:8.4,e:11.6,k:"sound",t:"［蝉の声］"},
+  {id:6,ch:0,s:12.0,e:14.6,k:"speech",t:"あの船、様子がおかしい"},
+  {id:7,ch:0,s:16.2,e:17.4,k:"speech",t:"ファイア！"},
+  {id:8,ch:1,s:17.3,e:19.0,k:"sound",t:"［砲声］"},
+  {id:9,ch:0,s:19.4,e:21.4,k:"speech",t:"伏せろ！"}
+ ],
+ ko:[
+  {id:1,ch:0,s:.8,e:3.2,k:"speech",t:"좋은 아침입니다"},
+  {id:2,ch:1,s:2.6,e:4.9,k:"speech",t:"네, 좋은 아침이에요"},
+  {id:3,ch:0,s:5.2,e:7.6,k:"speech",t:"오늘도 덥네요"},
+  {id:4,ch:2,s:6.0,e:10.2,k:"screen",t:"제3부두 출입금지"},
+  {id:5,ch:1,s:8.4,e:11.6,k:"sound",t:"[매미 소리]"},
+  {id:6,ch:0,s:12.0,e:14.6,k:"speech",t:"저 배, 뭔가 이상해"},
+  {id:7,ch:0,s:16.2,e:17.4,k:"speech",t:"불이야!",warn:{msg:"같은 시점 화면에 포격 장면이 보여요. ‘발사!’가 더 맞을 수 있어요.",fix:"발사!"}},
+  {id:8,ch:1,s:17.3,e:19.0,k:"sound",t:"[포성]"},
+  {id:9,ch:0,s:19.4,e:21.4,k:"speech",t:"엎드려!"}
+ ]
+};
+let cur="ko", channels=3, selId=null, t=0, playing=false;
+const $=id=>document.getElementById(id);
+const fmt=s=>{const ms=Math.round(s*1000)%1000,S=Math.floor(s)%60,M=Math.floor(s/60)%60,H=Math.floor(s/3600);return [H,M,S].map(v=>String(v).padStart(2,"0")).join(":")+"."+String(ms).padStart(3,"0")};
+const W=DUR*PX;
+$("wrap").style.width=W+"px";
+
+function ruler(){
+  let h="";for(let i=0;i<=DUR*2;i++){const s=i/2;h+=`<div class="tick ${i%2?"minor":""}" style="left:${s*PX}px">${i%2?"":`<b>${s}s</b>`}</div>`}
+  $("ruler").innerHTML=h;
+}
+function render(){
+  let hh=`<div class="h ruler-h">${fmt(t).slice(3)}</div>`;
+  for(let c=0;c<channels;c++)hh+=`<div class="h">채널 ${c+1}</div>`;
+  hh+=`<div class="add" id="addch">＋ 채널 추가</div>`;
+  $("heads").innerHTML=hh;
+  $("addch").onclick=()=>{channels++;render()};
+  let l="";
+  for(let c=0;c<channels;c++){
+    l+=`<div class="lane" data-ch="${c}">`;
+    data[cur].filter(x=>x.ch===c).forEach(x=>{
+      l+=`<div class="clip ${x.k} ${x.warn?"warn":""} ${x.id===selId?"selected":""}" tabindex="0" data-id="${x.id}" style="left:${x.s*PX}px;width:${(x.e-x.s)*PX}px" title="${KIND[x.k]} · ${fmt(x.s)} → ${fmt(x.e)}">
+        <span class="grip l"></span><span class="kind">${KIND[x.k]}</span><span class="t">${x.t}</span>${x.warn?'<span class="flag" aria-label="검증 의심">!</span>':""}<span class="grip r"></span></div>`;
+    });
+    l+=`</div>`;
+  }
+  l+=`<div class="lane ghost"></div>`;
+  $("lanes").innerHTML=l;
+  bindClips();inspector();frame();
+}
+function frame(){
+  $("ph").style.left=t*PX+"px";
+  $("tcbig").textContent=fmt(t);
+  const rh=document.querySelector(".ruler-h");if(rh)rh.textContent=fmt(t).slice(3);
+  const on=data[cur].filter(x=>t>=x.s&&t<x.e).sort((a,b)=>a.ch-b.ch);
+  $("subs").innerHTML=on.map(x=>`<div class="${x.k}">${x.t}</div>`).join("");
+  $("sign").style.opacity=(t>=5.6&&t<10.6)?1:0;
+  $("flash").style.opacity=(t>=16.1&&t<17.0)?1:0;
+}
+function inspector(){
+  const x=data[cur].find(c=>c.id===selId);
+  if(!x){$("insp").innerHTML=`<div class="empty">자막 조각을 선택하면 여기서 문장과 시간을 고칠 수 있어요.</div>`;return}
+  $("insp").innerHTML=`
+   <div class="meta">${KIND[x.k]} · 채널 ${x.ch+1}<br>${fmt(x.s)}<br>${fmt(x.e)}</div>
+   <textarea id="ed" aria-label="자막 문장">${x.t}</textarea>
+   <div style="display:flex;flex-direction:column;gap:6px">
+     <button class="btn">이 조각 다시 받아쓰기</button>
+     <button class="btn">원문 보기</button>
+   </div>
+   <div class="verify ${x.warn?"on":""}" id="vf">
+     <div class="thumb" aria-hidden="true"></div>
+     <span>${x.warn?x.warn.msg:""}</span>
+     <div class="acts"><button class="btn" id="apply">‘${x.warn?x.warn.fix:""}’로 바꾸기</button><button class="btn" id="keep">그대로 두기</button></div>
+   </div>`;
+  $("ed").oninput=e=>{x.t=e.target.value;dirty();const el=document.querySelector(`.clip[data-id="${x.id}"] .t`);if(el)el.textContent=x.t;frame()};
+  if(x.warn){$("apply").onclick=()=>{x.t=x.warn.fix;delete x.warn;dirty();render()};$("keep").onclick=()=>{delete x.warn;render()}}
+}
+function dirty(){$("dirty").classList.add("on")}
+function bindClips(){
+  document.querySelectorAll(".clip").forEach(el=>{
+    el.addEventListener("pointerdown",ev=>{
+      const x=data[cur].find(c=>c.id==el.dataset.id);
+      const mode=ev.target.classList.contains("l")?"l":ev.target.classList.contains("r")?"r":"m";
+      const x0=ev.clientX,s0=x.s,e0=x.e,ch0=x.ch,y0=ev.clientY;let moved=false;
+      el.setPointerCapture(ev.pointerId);el.style.cursor=mode==="m"?"grabbing":"ew-resize";
+      const mv=e=>{const d=(e.clientX-x0)/PX;if(Math.abs(e.clientX-x0)>2||Math.abs(e.clientY-y0)>2)moved=true;
+        const snap=v=>Math.round(v*10)/10;
+        if(mode==="m"){const len=e0-s0;x.s=Math.max(0,Math.min(DUR-len,snap(s0+d)));x.e=+(x.s+len).toFixed(1);
+          x.ch=Math.max(0,Math.min(channels-1,ch0+Math.round((e.clientY-y0)/44)));}
+        else if(mode==="l")x.s=Math.max(0,Math.min(x.e-.3,snap(s0+d)));
+        else x.e=Math.min(DUR,Math.max(x.s+.3,snap(e0+d)));
+        el.style.left=x.s*PX+"px";el.style.width=(x.e-x.s)*PX+"px";
+        if(mode==="m")el.style.transform=`translateY(${(x.ch-ch0)*44}px)`;frame()};
+      const up=()=>{el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up);
+        selId=x.id;if(moved)dirty();if(!moved){t=x.s}render()};
+      el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up);
+    });
+    el.addEventListener("keydown",e=>{if(e.key==="Enter"){selId=+el.dataset.id;render();$("ed")?.focus()}});
+  });
+}
+// range select on ruler
+let r0=null;
+$("ruler").addEventListener("pointerdown",e=>{
+  const b=$("wrap").getBoundingClientRect();r0=(e.clientX-b.left)/PX;$("pop").style.display="none";
+  $("ruler").setPointerCapture(e.pointerId);
+  const mv=ev=>{const r1=(ev.clientX-b.left)/PX;const a=Math.max(0,Math.min(r0,r1)),z=Math.min(DUR,Math.max(r0,r1));
+    $("range").style.display="block";$("range").style.left=a*PX+"px";$("range").style.width=(z-a)*PX+"px";
+    $("rt").textContent=`${a.toFixed(1)}s – ${z.toFixed(1)}s`;$("range").dataset.a=a;$("range").dataset.z=z};
+  const up=ev=>{$("ruler").removeEventListener("pointermove",mv);$("ruler").removeEventListener("pointerup",up);
+    const a=+$("range").dataset.a||0,z=+$("range").dataset.z||0;
+    if(z-a<.15){$("range").style.display="none";t=r0;frame();return}
+    t=a;frame();
+    const p=$("pop");p.style.display="flex";p.style.top="36px";p.style.left=Math.min(W-560,Math.max(4,a*PX))+"px"};
+  $("ruler").addEventListener("pointermove",mv);$("ruler").addEventListener("pointerup",up);
+});
+$("lanes").addEventListener("pointerdown",e=>{if(!e.target.closest(".clip")){selId=null;$("range").style.display="none";$("pop").style.display="none";render()}});
+$("set").onchange=e=>{cur=e.target.value;selId=null;render()};
+let last=0;
+function loop(ts){if(!playing)return;if(last)t+=(ts-last)/1000;last=ts;if(t>=DUR)t=0;frame();
+  const sc=$("scroll");const x=t*PX;if(x>sc.scrollLeft+sc.clientWidth-80||x<sc.scrollLeft)sc.scrollLeft=x-80;requestAnimationFrame(loop)}
+function toggle(){playing=!playing;last=0;$("play").textContent=playing?"❚❚ 일시정지":"▶ 재생";if(playing)requestAnimationFrame(loop)}
+$("play").onclick=toggle;
+document.addEventListener("keydown",e=>{if(e.code==="Space"&&e.target.tagName!=="TEXTAREA"){e.preventDefault();toggle()}});
+ruler();selId=7;t=16.4;render();$("scroll").scrollLeft=Math.max(0,W-$("scroll").clientWidth);
+</script>
+</body>
+</html>

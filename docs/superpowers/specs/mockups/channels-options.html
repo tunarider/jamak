@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>겹친 자막 처리</title>
+<style>
+:root{
+  --win:#16181c; --panel:#1e2126; --panel2:#24282e; --line:#2f343c; --line2:#3a4049;
+  --text:#e7e4dd; --dim:#8d929b; --faint:#5d636c;
+  --speech:#5b9bd5; --sound:#d9a441; --screen:#a67fe0; --warn:#e5584f; --hi:#f5e27a;
+  --ui:-apple-system,"SF Pro Text","Apple SD Gothic Neo",system-ui,sans-serif;
+  --tc:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#0f1013;color:var(--text);font:14px/1.55 var(--ui);padding:28px 24px 60px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto}
+h1{font-size:20px;font-weight:650;margin:0 0 6px}
+.lead{color:var(--dim);margin:0 0 22px;max-width:70ch}
+.scenario{display:flex;flex-wrap:wrap;gap:8px 18px;margin:0 0 26px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:13px;color:var(--dim)}
+.scenario b{color:var(--text);font-weight:600}
+.opt{background:var(--win);border:1px solid #2a2e35;border-radius:10px;margin-bottom:22px;overflow:hidden;cursor:pointer;transition:border-color .15s}
+.opt:hover{border-color:#4a515c}
+.opt.selected{border-color:var(--hi);box-shadow:0 0 0 1px var(--hi)}
+.opt:focus-visible{outline:2px solid var(--hi);outline-offset:2px}
+.ohead{display:flex;align-items:baseline;gap:12px;padding:14px 16px 10px}
+.ohead .k{font:600 13px var(--tc);color:var(--hi)}
+.ohead h2{font-size:16px;font-weight:650;margin:0}
+.ohead .rec{font-size:12px;color:#0f1013;background:var(--hi);padding:1px 8px;border-radius:10px;font-weight:600}
+.odesc{padding:0 16px 12px;color:var(--dim);max-width:78ch;font-size:13.5px}
+.tl{display:grid;grid-template-columns:92px 1fr;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.heads{background:var(--panel);border-right:1px solid var(--line)}
+.h{display:flex;align-items:center;padding:0 12px;font-size:12px;color:var(--dim);border-bottom:1px solid var(--line)}
+.h:last-child{border-bottom:0}
+.h small{color:var(--faint);margin-left:4px}
+.lanes{position:relative;overflow:hidden}
+.ruler{height:22px;position:relative;background:var(--panel);border-bottom:1px solid var(--line)}
+.ruler i{position:absolute;top:0;bottom:0;border-left:1px solid var(--line2);font:normal 10px var(--tc);color:var(--faint);padding:4px 0 0 4px}
+.lane{position:relative;border-bottom:1px solid var(--line);background:repeating-linear-gradient(90deg,transparent 0 calc(var(--px) - 1px),rgba(255,255,255,.025) calc(var(--px) - 1px) var(--px))}
+.lane:last-child{border-bottom:0}
+.lane.tint-screen{background-color:rgba(166,127,224,.035)}
+.lane.tint-sound{background-color:rgba(217,164,65,.03)}
+.clip{position:absolute;border-radius:4px;background:color-mix(in srgb,var(--c) 28%,#1b1e22);border:1px solid color-mix(in srgb,var(--c) 70%,transparent);font-size:12px;display:flex;align-items:center;padding:0 8px 0 10px;white-space:nowrap;overflow:hidden}
+.clip:before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.clip.speech{--c:var(--speech)}.clip.sound{--c:var(--sound)}.clip.screen{--c:var(--screen)}
+.clip .sp{font-size:10.5px;color:var(--c);margin-right:6px}
+.clip.flag{border-color:var(--warn)}
+.ov{position:absolute;background:repeating-linear-gradient(135deg,rgba(245,226,122,.22) 0 4px,transparent 4px 8px);border-left:1px dashed var(--hi);border-right:1px dashed var(--hi);pointer-events:none}
+.ov.bad{background:repeating-linear-gradient(135deg,rgba(229,88,79,.3) 0 4px,transparent 4px 8px);border-color:var(--warn)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.cols div{padding:12px 16px;font-size:13px}
+.cols div+div{border-left:1px solid var(--line)}
+.cols h4{margin:0 0 4px;font-size:12px;color:var(--dim);font-weight:600}
+.cols ul{margin:0;padding-left:18px}
+.cols li{margin:2px 0}
+.good h4{color:#7fc78a}.bad4 h4{color:#e8887f}
+.foot{color:var(--dim);font-size:13px;margin-top:8px;max-width:78ch}
+@media (max-width:720px){.cols{grid-template-columns:1fr}.cols div+div{border-left:0;border-top:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>겹친 자막 조각, 어떻게 보여줄까</h1>
+<p class="lead">세 안 모두 같은 12초 장면을 보여줘요. 노란 빗금은 정상적으로 겹친 구간, 빨간 빗금은 받아쓰기 시간이 어긋나서 겹쳤을 가능성이 높은 구간이에요. 마음에 드는 안을 클릭해도 되고 터미널에서 말해줘도 돼요.</p>
+
+<div class="scenario">
+  <span><b>장면</b> 부두, 두 사람(A, B)</span>
+  <span>A의 말 중간에 B가 끼어듦</span>
+  <span>대사와 화면 표지판이 동시에 나옴</span>
+  <span>포성과 "발사!"가 겹침</span>
+  <span>B 대사 끝과 A 대사 시작이 0.3초 겹침(싱크 오류 의심)</span>
+</div>
+
+<div class="opt" data-choice="type-lanes" onclick="toggleSelect(this)" tabindex="0">
+  <div class="ohead"><span class="k">A</span><h2>종류별 고정 레인 + 레인 안에서만 자동 쌓기</h2><span class="rec">추천</span></div>
+  <p class="odesc">레인은 화면, 음성, 소리 세 개로 고정돼요. 사용자가 채널을 직접 만들지 않아요. 음성 레인에서 대사가 겹칠 때만 그 레인이 잠깐 두 줄로 늘어나요. 겹침이 없으면 다시 한 줄이에요.</p>
+  <div class="tl" id="tlA"></div>
+  <div class="cols">
+    <div class="good"><h4>좋은 점</h4><ul><li>어디에 무엇이 있는지 항상 같은 자리에 있어요</li><li>화면 자막과 대사 겹침은 원래 정상이라 신경 쓸 필요가 없어요</li><li>의미 있는 겹침(대사끼리)만 눈에 띄어요</li></ul></div>
+    <div class="bad4"><h4>아쉬운 점</h4><ul><li>대사가 셋 이상 겹치는 장면에서는 음성 레인이 세 줄까지 늘어나요</li><li>누가 말했는지는 보이지 않아요</li></ul></div>
+  </div>
+</div>
+
+<div class="opt" data-choice="single-lane" onclick="toggleSelect(this)" tabindex="0">
+  <div class="ohead"><span class="k">B</span><h2>한 줄 + 겹친 구간만 위아래로 나누기</h2></div>
+  <p class="odesc">모든 조각이 한 줄에 놓여요. 겹친 조각끼리만 그 자리에서 높이를 반씩 나눠 가져요. 타임라인 높이가 절대 변하지 않아요.</p>
+  <div class="tl" id="tlB"></div>
+  <div class="cols">
+    <div class="good"><h4>좋은 점</h4><ul><li>가장 단순하고 공간을 적게 차지해요</li><li>srt 파일의 실제 모양과 똑같아요</li></ul></div>
+    <div class="bad4"><h4>아쉬운 점</h4><ul><li>겹친 조각은 얇아져서 끌거나 글자를 읽기 어려워요</li><li>표지판과 대사처럼 정상적인 겹침도 오류처럼 보여요</li></ul></div>
+  </div>
+</div>
+
+<div class="opt" data-choice="speaker-lanes" onclick="toggleSelect(this)" tabindex="0">
+  <div class="ohead"><span class="k">C</span><h2>화자별 레인</h2></div>
+  <p class="odesc">말하는 사람마다 레인이 생겨요. 겹침은 대부분 자연스럽게 다른 레인으로 갈라져요. 대신 화자를 구분하는 단계가 따로 필요해요(위스퍼만으로는 안 돼요).</p>
+  <div class="tl" id="tlC"></div>
+  <div class="cols">
+    <div class="good"><h4>좋은 점</h4><ul><li>대화 흐름이 한눈에 보여요</li><li>화자 정보가 있으면 번역 때 말투(존댓말/반말)를 일관되게 맞추기 좋아요</li></ul></div>
+    <div class="bad4"><h4>아쉬운 점</h4><ul><li>화자 구분이 틀리면 레인이 엉망이 돼요</li><li>등장인물이 많은 영화에서는 레인이 다시 늘어나요</li></ul></div>
+  </div>
+</div>
+
+<p class="foot">출력은 세 안 모두 같아요. srt는 시간이 겹치는 문장을 허용하고, 플레이어가 위아래로 쌓아서 보여줘요. 화면 자막은 화면 위쪽에 표시되도록 위치 태그를 붙이면 대사와 섞이지 않아요. 어느 안을 고르든 바뀌는 건 편집 화면뿐이에요.</p>
+</div>
+
+<script>
+const DUR=12;
+const C=[
+ {id:1,k:"speech",sp:"A",s:.5,e:3.5,t:"저 배, 뭔가 이상해"},
+ {id:2,k:"speech",sp:"B",s:3.0,e:4.2,t:"어디?"},
+ {id:3,k:"screen",s:1.0,e:6.0,t:"제3부두 출입금지"},
+ {id:4,k:"sound",s:5.0,e:6.6,t:"[포성]"},
+ {id:5,k:"speech",sp:"A",s:5.2,e:6.0,t:"발사!"},
+ {id:6,k:"speech",sp:"B",s:7.0,e:8.5,t:"엎드려!"},
+ {id:7,k:"speech",sp:"A",s:8.2,e:10.6,t:"다들 괜찮아?",flag:1},
+ {id:8,k:"screen",s:9.0,e:11.2,t:"SHIP-07"}
+];
+function pack(list){ // greedy rows
+  const rows=[];list.slice().sort((a,b)=>a.s-b.s).forEach(c=>{let r=rows.findIndex(row=>row.at(-1).e<=c.s);if(r<0){rows.push([c]);r=rows.length-1}else rows[r].push(c);c._r=r});return rows.length;
+}
+function overlaps(list){const o=[];for(let i=0;i<list.length;i++)for(let j=i+1;j<list.length;j++){const a=list[i],b=list[j];const s=Math.max(a.s,b.s),e=Math.min(a.e,b.e);if(e>s)o.push({s,e,bad:(e-s)<0.5&&a.k==="speech"&&b.k==="speech"})}return o}
+function build(el,lanes){
+  const w=el.clientWidth-92||900, px=w/DUR;
+  let heads=`<div class="h" style="height:22px"></div>`, body=`<div class="ruler">`;
+  for(let i=0;i<DUR;i++)body+=`<i style="left:${i*px}px">${i}s</i>`;
+  body+=`</div>`;
+  lanes.forEach(L=>{
+    const rows=L.mode==="split"?1:Math.max(1,pack(L.items));
+    const rh=34, h=rows*rh+8;
+    heads+=`<div class="h" style="height:${h}px">${L.name}${rows>1?`<small>×${rows}</small>`:""}</div>`;
+    body+=`<div class="lane ${L.tint||""}" style="height:${h}px;--px:${px}px">`;
+    overlaps(L.items).forEach(o=>body+=`<div class="ov ${o.bad?"bad":""}" style="left:${o.s*px}px;width:${(o.e-o.s)*px}px;top:2px;bottom:2px"></div>`);
+    if(L.mode==="split"){
+      // each clip: find concurrent group size at its span
+      // clusters of transitively overlapping clips, packed into rows inside each cluster
+      const items=L.items.slice().sort((a,b)=>a.s-b.s);const clusters=[];let cur=null,end=-1;
+      items.forEach(c=>{if(!cur||c.s>=end){cur=[];clusters.push(cur);end=c.e}else end=Math.max(end,c.e);cur.push(c)});
+      clusters.forEach(g=>{const n=pack(g);const ch=(h-8-(n-1)*2)/n;g.forEach(c=>body+=clip(c,px,4+c._r*(ch+2),ch))});
+    } else L.items.forEach(c=>body+=clip(c,px,4+c._r*rh,rh-4,L.showSp));
+    body+=`</div>`;
+  });
+  el.innerHTML=`<div class="heads">${heads}</div><div class="lanes">${body}</div>`;
+}
+function clip(c,px,top,h,showSp){
+  const lbl=c.k==="speech"?(showSp===false?"":`<span class="sp">${c.sp}</span>`):"";
+  return `<div class="clip ${c.k} ${c.flag?"flag":""}" style="left:${c.s*px}px;width:${(c.e-c.s)*px-2}px;top:${top}px;height:${h}px;font-size:${h<20?10.5:12}px">${lbl}${c.t}</div>`;
+}
+function draw(){
+  build(document.getElementById("tlA"),[
+    {name:"화면",tint:"tint-screen",items:C.filter(c=>c.k==="screen")},
+    {name:"음성",items:C.filter(c=>c.k==="speech")},
+    {name:"소리",tint:"tint-sound",items:C.filter(c=>c.k==="sound")}
+  ]);
+  build(document.getElementById("tlB"),[{name:"자막",mode:"split",items:C}]);
+  build(document.getElementById("tlC"),[
+    {name:"화자 A",items:C.filter(c=>c.sp==="A"),showSp:false},
+    {name:"화자 B",items:C.filter(c=>c.sp==="B"),showSp:false},
+    {name:"화면",tint:"tint-screen",items:C.filter(c=>c.k==="screen")},
+    {name:"소리",tint:"tint-sound",items:C.filter(c=>c.k==="sound")}
+  ]);
+}
+draw();addEventListener("resize",draw);
+document.querySelectorAll(".opt").forEach(o=>o.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();o.click()}}));
+</script>
+</body>
+</html>

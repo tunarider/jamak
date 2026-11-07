@@ -1,0 +1,73 @@
+name: Jamak
+options:
+  bundleIdPrefix: com.tunarider
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  JamakCore:
+    path: ../Packages/JamakCore
+targets:
+  Jamak:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - Jamak
+    dependencies:
+      - package: JamakCore
+        products:
+          - JamakCore
+          - JamakMedia
+          - JamakLLM
+    info:
+      path: Jamak/Info.plist
+      properties:
+        CFBundleName: Jamak
+        CFBundleDisplayName: Jamak
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        LSMinimumSystemVersion: "14.0"
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    entitlements:
+      path: Jamak/Jamak.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-write: true
+        com.apple.security.files.bookmarks.app-scope: true
+        com.apple.security.network.client: true
+    preBuildScripts:
+      - name: Check bundled ffmpeg
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ ! -x "${SRCROOT}/Vendor/bin/ffmpeg" ]; then
+            echo "error: scripts/build-ffmpeg.sh를 먼저 실행하세요"
+            exit 1
+          fi
+    postBuildScripts:
+      - name: Embed ffmpeg helper
+        inputFiles:
+          - $(SRCROOT)/Vendor/bin/ffmpeg
+          - $(SRCROOT)/Jamak/Helper.entitlements
+        outputFiles:
+          - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/ffmpeg
+        script: |
+          set -e
+          DEST="${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Helpers"
+          mkdir -p "$DEST"
+          cp -f "${SRCROOT}/Vendor/bin/ffmpeg" "$DEST/ffmpeg"
+          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:--}"
+          # 실제 인증서로 서명할 때만 보안 타임스탬프를 붙인다(ad-hoc "-"에는 붙일 수 없다).
+          TIMESTAMP=""
+          if [ "$IDENTITY" != "-" ]; then TIMESTAMP="--timestamp"; fi
+          codesign -f -s "$IDENTITY" -o runtime $TIMESTAMP \
+            --entitlements "${SRCROOT}/Jamak/Helper.entitlements" "$DEST/ffmpeg"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tunarider.jamak
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "6.0"
+        ARCHS: arm64
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"

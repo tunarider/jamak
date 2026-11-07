@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#25272C"/>
+      <stop offset="1" stop-color="#16171A"/>
+    </linearGradient>
+  </defs>
+  <!-- macOS 아이콘 격자: 1024 캔버스 안 824 둥근 사각형 -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#3A3D44" stroke-width="3"/>
+  <!-- 말소리(파형) -->
+  <g stroke="#4F8EF0" stroke-width="30" stroke-linecap="round">
+    <line x1="250" y1="452" x2="250" y2="572"/>
+    <line x1="310" y1="372" x2="310" y2="652"/>
+    <line x1="370" y1="292" x2="370" y2="732"/>
+    <line x1="430" y1="402" x2="430" y2="622"/>
+    <line x1="490" y1="472" x2="490" y2="552"/>
+  </g>
+  <!-- 자막 줄 -->
+  <rect x="556" y="372" width="230" height="64" rx="32" fill="#F2CC4E"/>
+  <rect x="556" y="480" width="170" height="64" rx="32" fill="#F2CC4E"/>
+  <rect x="556" y="588" width="210" height="64" rx="32" fill="#F2CC4E" fill-opacity="0.5"/>
+</svg>

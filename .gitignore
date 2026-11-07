@@ -1,0 +1,6 @@
+.superpowers/
+.build/
+App/Jamak.xcodeproj/
+DerivedData/
+.DS_Store
+App/Vendor/

@@ -1,0 +1,303 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>타임라인 패널 시안</title>
+<style>
+:root{
+  --bg-0:#121316; --bg-1:#191A1E; --bg-2:#202227; --bg-3:#282A30;
+  --line:#2C2F35; --line-2:#383B42;
+  --text:#E9E7E2; --text-2:#A3A5AC; --text-3:#6E717A;
+  --accent:#F2CC4E; --accent-ink:#1A1608;
+  --screen:#9B7BE6; --speech:#4F8EF0; --sound:#E3874F;
+  --ui: -apple-system, "SF Pro Text", "Apple SD Gothic Neo", "Pretendard", system-ui, sans-serif;
+  --head:150px; --ruler:30px; --row:40px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0B0C0E;color:var(--text);font-family:var(--ui);font-size:12px;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.tc{font-variant-numeric:tabular-nums}
+
+/* 시안 안내 (앱 밖) */
+.page{max-width:1400px;margin:0 auto;padding:28px 24px 60px}
+.intro h1{font-size:22px;font-weight:650;letter-spacing:-.01em}
+.intro p{color:var(--text-2);font-size:13px;margin-top:6px;max-width:80ch;line-height:1.6}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0 18px}
+.box{background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.box h2{font-size:13px;font-weight:650;margin-bottom:8px}
+.box li{color:var(--text-2);font-size:12.5px;line-height:1.6;margin-left:16px}
+.box li b{color:var(--text);font-weight:600}
+.controls{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-bottom:12px;color:var(--text-2);font-size:12.5px}
+.seg{display:inline-flex;background:var(--bg-1);border:1px solid var(--line);border-radius:8px;padding:3px;gap:2px}
+.seg button{padding:5px 10px;border-radius:5px;color:var(--text-2)}
+.seg button[aria-pressed=true]{background:var(--bg-3);color:var(--text)}
+
+/* 창 */
+.win{height:780px;border-radius:12px;overflow:hidden;border:1px solid #000;box-shadow:0 30px 80px rgba(0,0,0,.55);background:var(--bg-1);display:flex;flex-direction:column}
+.titlebar{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;background:var(--bg-0);border-bottom:1px solid var(--line)}
+.titlebar i{width:12px;height:12px;border-radius:50%;display:block}
+.titlebar b{margin-left:14px;font-size:13px;font-weight:600}
+.upper{flex:1;min-height:120px;display:grid;grid-template-columns:230px 1fr 280px;background:var(--bg-1)}
+.upper > div{border-right:1px solid var(--line)}
+.video{display:grid;place-items:center;background:#000;margin:14px;border-radius:4px;color:#555;font-size:13px}
+.side{padding:14px;color:var(--text-3)}
+.splitter{height:7px;flex:none;cursor:row-resize;background:var(--bg-0);border-top:1px solid var(--line);border-bottom:1px solid var(--line);position:relative}
+.splitter:after{content:"";position:absolute;left:50%;top:2px;width:36px;height:2px;margin-left:-18px;border-radius:2px;background:var(--line-2)}
+.splitter:hover:after,.splitter.drag:after{background:var(--accent)}
+
+/* 타임라인 패널 */
+.panel{flex:none;display:flex;flex-direction:column;background:var(--bg-1);min-height:0}
+.bar{height:36px;flex:none;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid var(--line)}
+.bar .grow{flex:1}
+.tbtn{height:26px;padding:0 9px;border-radius:6px;display:inline-flex;align-items:center;gap:6px;color:var(--text-2)}
+.tbtn:hover{background:var(--bg-2);color:var(--text)}
+.tbtn[aria-pressed=true]{background:var(--bg-3);color:var(--text)}
+.vsep{width:1px;height:18px;background:var(--line-2)}
+.zoom{display:flex;align-items:center;gap:8px;color:var(--text-3)}
+.zoom input{width:120px;accent-color:var(--text-2)}
+
+/* 한 스크롤 영역: 눈금(위 고정)·줄 이름(왼쪽 고정)·조각이 한 좌표계 */
+.scroll{flex:1;min-height:0;overflow:auto;position:relative;background:var(--bg-0)}
+.scroll::-webkit-scrollbar{width:11px;height:11px}
+.scroll::-webkit-scrollbar-track{background:var(--bg-1)}
+.scroll::-webkit-scrollbar-thumb{background:#3a3d44;border-radius:6px;border:2px solid var(--bg-1)}
+.scroll::-webkit-scrollbar-thumb:hover{background:#4a4e57}
+.scroll::-webkit-scrollbar-corner{background:var(--bg-1)}
+.content{position:relative;display:flex;flex-direction:column;min-height:100%}
+.row{display:flex;flex:none}
+.head{position:sticky;left:0;z-index:3;width:var(--head);flex:none;background:var(--bg-1);border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;padding:0 10px}
+.head .stripe{width:4px;align-self:stretch;margin:8px 0;border-radius:2px}
+.head b{font-size:12px;font-weight:600}
+.head .n{margin-left:auto;color:var(--text-3);font-size:10.5px}
+.head .eye{color:var(--text-3);width:22px;height:22px;display:grid;place-items:center;border-radius:5px}
+.head .eye:hover{background:var(--bg-3);color:var(--text)}
+.rulerrow{position:sticky;top:0;z-index:4}
+.corner{position:sticky;left:0;z-index:5;width:var(--head);height:var(--ruler);flex:none;background:var(--bg-1);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.ruler{position:relative;height:var(--ruler);background:var(--bg-1);border-bottom:1px solid var(--line);cursor:pointer}
+.ruler .tick{position:absolute;top:0;bottom:0;width:1px;background:var(--line-2)}
+.ruler .tick span{position:absolute;top:8px;left:5px;font:500 10.5px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-3);white-space:nowrap}
+.ruler .ph{position:absolute;top:0;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--accent);transform:translateX(-6px)}
+.track{position:relative;border-bottom:1px solid var(--line)}
+.track.screen{background-color:rgba(155,123,230,.035)}
+.track.speech{background-color:rgba(79,142,240,.035)}
+.track.sound{background-color:rgba(227,135,79,.035)}
+.grid{background-image:linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:var(--tick) 100%}
+.filler{flex:1;display:flex}
+.filler .head{border-bottom:0}
+.filler .track{border-bottom:0;background-color:transparent}
+.clip{position:absolute;height:30px;border-radius:5px;padding:0 8px;display:flex;align-items:center;font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;border:1px solid rgba(255,255,255,.1);cursor:default}
+.clip span{overflow:hidden;text-overflow:ellipsis}
+.clip.screen{background:linear-gradient(180deg,#4f3f7d,#433568);color:#F0EAFF;border-left:3px solid var(--screen)}
+.clip.speech{background:linear-gradient(180deg,#2c4f86,#25426f);color:#E6EEFF;border-left:3px solid var(--speech)}
+.clip.sound{background:linear-gradient(180deg,#7a4a2c,#653d24);color:#FFEEE3;border-left:3px solid var(--sound)}
+.clip.sel{outline:2px solid var(--accent);outline-offset:-1px}
+.playhead{position:absolute;top:0;bottom:0;width:1.5px;margin-left:-.75px;background:var(--accent);z-index:2;pointer-events:none}
+.status{height:26px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;border-top:1px solid var(--line);background:var(--bg-0);color:var(--text-3);font-size:11px}
+.status .ok{color:#3FB68B}
+.legend{color:var(--text-3);font-size:12px;margin-top:12px;line-height:1.6}
+</style></head>
+<body><div class="page">
+<div class="intro">
+  <h1>타임라인 패널 재설계 시안</h1>
+  <p>아래 창에서 영상과 타임라인 사이 경계를 위아래로 끌어 패널 높이를 바꿔 보세요. 타임라인은 가로로 스크롤하고(트랙패드, 휠+⇧, 아래 스크롤 막대), 눈금을 누르면 재생 위치가 옮겨집니다. ▶ 재생으로 "고정"도 시험할 수 있어요.</p>
+</div>
+<div class="cols">
+  <div class="box"><h2>지금 문제</h2><ul>
+    <li><b>패널 아래 이상한 영역</b>: 타임라인이 내용 높이(최대 320px)까지만 커지고, 남는 패널은 빈 판으로 남는다. 내용이 그보다 길면 타임라인 아래쪽이 잘린다(소리 줄).</li>
+    <li><b>가로 스크롤 막대가 패널 중간에</b> 떠 있다. 타임라인 높이가 패널보다 작아서 막대가 그 아래 끝에 붙는다.</li>
+    <li>줄 이름 칸(SwiftUI)과 조각 줄(AppKit)이 따로 그려져서, 크기가 바뀌면 자꾸 어긋난다.</li>
+  </ul></div>
+  <div class="box"><h2>바꾸는 것</h2><ul>
+    <li><b>스크롤 영역 하나가 패널 전체를 채운다.</b> 눈금은 위에, 줄 이름은 왼쪽에 붙어 있고(고정), 조각과 같은 좌표계라 어긋날 수 없다.</li>
+    <li><b>가로 스크롤 막대는 늘 패널 맨 아래</b>에 있다. 세로 스크롤 막대는 줄이 패널보다 많을 때만 오른쪽에 생긴다.</li>
+    <li><b>남는 높이</b>는 두 가지 중 고른다: 아래를 비워 두기(타임라인 바탕이 그대로 이어짐) 또는 줄에 고르게 나누기.</li>
+    <li>잘리는 영역이 없다. 줄이 패널보다 많으면 세로로 스크롤되고, 눈금 아래로 지나간다.</li>
+  </ul></div>
+</div>
+<div class="controls">
+  <span>남는 높이</span>
+  <div class="seg" id="fillMode"><button aria-pressed="true" data-v="empty">아래 비워 두기</button><button aria-pressed="false" data-v="stretch">줄에 나누기</button></div>
+  <span>예시 자막</span>
+  <div class="seg" id="dataMode"><button aria-pressed="true" data-v="normal">보통 (화면 1줄)</button><button aria-pressed="false" data-v="overlap">겹침 많음 (예전 화면 글자)</button></div>
+  <span>패널 높이</span>
+  <div class="seg" id="presets"><button data-h="170">작게</button><button data-h="300">보통</button><button data-h="520">크게</button></div>
+</div>
+
+<div class="win" id="win">
+  <div class="titlebar"><i style="background:#ED6A5E"></i><i style="background:#F4BF4F"></i><i style="background:#61C554"></i><b>test5m2</b></div>
+  <div class="upper"><div class="side">자막셋 · 검토할 조각</div><div class="video">영상</div><div class="side">인스펙터</div></div>
+  <div class="splitter" id="splitter" title="끌어서 패널 높이 바꾸기"></div>
+  <div class="panel" id="panel" style="height:300px">
+    <div class="bar">
+      <button class="tbtn" aria-pressed="true">선택</button><button class="tbtn">구간</button>
+      <button class="tbtn" aria-pressed="true">스냅</button>
+      <button class="tbtn" id="pin" aria-pressed="false" title="켜면 재생 중에 타임라인이 재생 위치를 따라가지 않아요">고정</button>
+      <span class="vsep"></span>
+      <button class="tbtn" id="play">▶ 재생</button>
+      <span class="tc" id="time" style="color:var(--text-2);min-width:70px">0:00.0</span>
+      <span class="grow"></span>
+      <div class="zoom">− <input id="zoom" type="range" min="10" max="200" value="60"> +</div>
+    </div>
+    <div class="scroll" id="scroll"><div class="content" id="content"></div></div>
+  </div>
+  <div class="status"><span class="ok">● 저장됨</span><span id="dims"></span></div>
+</div>
+<p class="legend">시안 숫자: 영상 5분, 화면 17 · 음성 58 · 소리 14조각(test5m2와 비슷하게 만든 예시). 줄 한 칸 높이 40px, 눈금 30px. "겹침 많음"은 예전 방식으로 만든 화면 글자처럼 겹치는 조각이 줄을 여러 칸으로 늘리는 경우다.</p>
+</div>
+
+<script>
+const DURATION = 300; // 초
+const KINDS = [
+  {key:'screen', name:'화면', color:'var(--screen)'},
+  {key:'speech', name:'음성', color:'var(--speech)'},
+  {key:'sound',  name:'소리', color:'var(--sound)'},
+];
+const speechText = ['あ…','ちょっ、おい!','もう!','え?','何これ?','あ、それ','うちにも届いてた','やべえ、マジで','うん','いや、由梨についてくの大変だよ','今日の写真 賞に出すの?','前から、もっといろんな人に','ねえ、朝日','今度は、朝日撮りに行きたい'];
+const screenText = ['平井由梨様','第三埠頭 立入禁止','2LDK 2,300万円','パーティーのお知らせ','ご参加ください','御礼金','お久しぶりです','この度は'];
+const soundText = ['足音','ドアが閉まる音','電話の着信音','風の音','拍手'];
+
+let rand = 7;
+function rnd(){ rand = (rand*16807)%2147483647; return rand/2147483647; }
+function makeData(overlap){
+  rand = 7;
+  const cues = [];
+  let t = 2;
+  for(let i=0;i<58;i++){ const len = 0.8+rnd()*2.6; cues.push({kind:'speech',start:t,end:Math.min(DURATION,t+len),text:speechText[i%speechText.length]}); t += len + 0.6 + rnd()*4.2; if(t>DURATION-3) t = 3+rnd()*20; }
+  for(let i=0;i<14;i++){ const s = 8+rnd()*(DURATION-12); cues.push({kind:'sound',start:s,end:s+1.5+rnd()*3,text:soundText[i%soundText.length]}); }
+  if(overlap){
+    // 예전 방식: 한 화면의 글줄마다 조각 → 같은 시간에 여러 조각이 겹친다.
+    for(let g=0; g<3; g++){ const s = 40+g*110; for(let k=0;k<6;k++) cues.push({kind:'screen',start:s+k*0.2,end:s+5+k*0.3,text:screenText[(g+k)%screenText.length]}); }
+  } else {
+    let s = 5;
+    for(let i=0;i<17;i++){ const len = 2+rnd()*4; cues.push({kind:'screen',start:s,end:s+len,text:screenText[i%screenText.length]}); s += len + 4 + rnd()*12; if(s>DURATION-6) break; }
+  }
+  return cues;
+}
+// 겹치는 조각은 아래 칸으로 내린다(지금 앱의 LaneLayout과 같은 방식).
+function layout(cues){
+  const lanes = {};
+  for(const k of KINDS){
+    const list = cues.filter(c=>c.kind===k.key).sort((a,b)=>a.start-b.start);
+    const rowsEnd = [];
+    for(const c of list){ let r = rowsEnd.findIndex(e=>e<=c.start); if(r<0){ r=rowsEnd.length; rowsEnd.push(0);} rowsEnd[r]=c.end; c.row=r; }
+    lanes[k.key] = {rows:Math.max(1,rowsEnd.length), cues:list};
+  }
+  return lanes;
+}
+
+const S = {px:60, fill:'empty', overlap:false, playhead:12, playing:false, pinned:false, sel:null};
+const scroll = document.getElementById('scroll'), content = document.getElementById('content');
+let lanes = layout(makeData(false));
+
+function tickStep(){ const steps=[1,2,5,10,15,30,60]; return steps.find(s=>s*S.px>=70) || 60; }
+function fmt(s){ const m=Math.floor(s/60), r=s-m*60; return m+':'+r.toFixed(1).padStart(4,'0'); }
+
+function render(){
+  const W = Math.ceil(DURATION*S.px)+40;
+  const step = tickStep();
+  content.style.width = `calc(var(--head) + ${W}px)`;
+  content.style.setProperty('--tick', (step*S.px)+'px');
+  let h = '';
+  // 눈금 줄
+  h += `<div class="row rulerrow"><div class="corner"></div><div class="ruler" id="ruler" style="width:${W}px">`;
+  for(let s=0;s<=DURATION;s+=step){ const m=Math.floor(s/60), r=s%60; h += `<div class="tick" style="left:${s*S.px}px"><span>${m}:${String(r).padStart(2,'0')}</span></div>`; }
+  h += `<div class="ph" id="phHead"></div></div></div>`;
+  // 줄
+  for(const k of KINDS){
+    const L = lanes[k.key];
+    const natural = L.rows*40;
+    const grow = S.fill==='stretch' ? `flex:${L.rows} 1 ${natural}px;` : `flex:none;height:${natural}px;`;
+    h += `<div class="row lane" style="${grow}min-height:${natural}px">`;
+    h += `<div class="head"><span class="stripe" style="background:${k.color}"></span><b>${k.name}</b><span class="n tc">${L.cues.length}</span><button class="eye" title="트랙 숨기기">◉</button></div>`;
+    h += `<div class="track grid ${k.key}" style="width:${W}px">`;
+    const rowH = 100/L.rows;
+    for(const c of L.cues){
+      const left = c.start*S.px, width = Math.max(6,(c.end-c.start)*S.px-2);
+      const id = k.key+':'+c.start.toFixed(2);
+      h += `<div class="clip ${k.key}${S.sel===id?' sel':''}" data-id="${id}" style="left:${left}px;width:${width}px;top:calc(${rowH*c.row}% + ${rowH/2}% - 15px)" title="${c.text}"><span>${c.text}</span></div>`;
+    }
+    h += `</div></div>`;
+  }
+  // 남는 높이: 줄 이름 칸과 타임라인 바탕이 그대로 이어진다(잘린 판이 없다).
+  h += `<div class="row filler" style="flex:${S.fill==='stretch'?0:1}"><div class="head"></div><div class="track grid" style="width:${W}px"></div></div>`;
+  h += `<div class="playhead" id="ph"></div>`;
+  content.innerHTML = h;
+  placePlayhead();
+  updateDims();
+}
+function placePlayhead(){
+  const x = S.playhead*S.px;
+  const ph = document.getElementById('ph'); if(ph) ph.style.left = `calc(var(--head) + ${x}px)`;
+  const head = document.getElementById('phHead'); if(head) head.style.left = x+'px';
+  document.getElementById('time').textContent = fmt(S.playhead);
+}
+function updateDims(){
+  const p = document.getElementById('panel');
+  document.getElementById('dims').textContent = `패널 높이 ${Math.round(p.getBoundingClientRect().height)}px · 확대 ${S.px}px/초`;
+}
+
+// 눈금 누르기: 재생 위치 옮기기
+content.addEventListener('mousedown', e=>{
+  const ruler = e.target.closest('.ruler');
+  if(ruler){
+    const seek = ev=>{ const r = ruler.getBoundingClientRect(); S.playhead = Math.min(DURATION, Math.max(0,(ev.clientX-r.left)/S.px)); placePlayhead(); };
+    seek(e);
+    const up = ()=>{ window.removeEventListener('mousemove',seek); window.removeEventListener('mouseup',up); };
+    window.addEventListener('mousemove',seek); window.addEventListener('mouseup',up);
+    return;
+  }
+  const clip = e.target.closest('.clip');
+  S.sel = clip ? clip.dataset.id : null;
+  content.querySelectorAll('.clip.sel').forEach(c=>c.classList.remove('sel'));
+  if(clip) clip.classList.add('sel');
+});
+
+// 재생과 "고정"
+let last = 0;
+function tick(now){
+  if(!S.playing) return;
+  const dt = last ? (now-last)/1000 : 0; last = now;
+  S.playhead = Math.min(DURATION, S.playhead+dt);
+  placePlayhead();
+  if(!S.pinned){
+    const x = S.playhead*S.px, viewL = scroll.scrollLeft, viewR = viewL + scroll.clientWidth - 150;
+    if(x > viewR - 20 || x < viewL) scroll.scrollLeft = x - 40;
+  }
+  if(S.playhead>=DURATION){ S.playing=false; document.getElementById('play').textContent='▶ 재생'; return; }
+  requestAnimationFrame(tick);
+}
+document.getElementById('play').onclick = ()=>{
+  S.playing = !S.playing; last = 0;
+  document.getElementById('play').textContent = S.playing ? '❚❚ 정지' : '▶ 재생';
+  if(S.playing) requestAnimationFrame(tick);
+};
+document.getElementById('pin').onclick = e=>{ S.pinned=!S.pinned; e.currentTarget.setAttribute('aria-pressed',S.pinned); };
+
+// 확대: 재생 위치가 보이면 그 자리를 기준으로
+document.getElementById('zoom').oninput = e=>{
+  const old = S.px, next = +e.target.value;
+  const anchorT = S.playhead, offset = anchorT*old - scroll.scrollLeft;
+  S.px = next; render();
+  scroll.scrollLeft = anchorT*next - offset;
+};
+// 세로 휠만 오고 세로로 스크롤할 게 없으면 가로로 쓴다(지금 앱과 같다).
+scroll.addEventListener('wheel', e=>{
+  if(e.ctrlKey || e.metaKey){ e.preventDefault(); const z=document.getElementById('zoom'); z.value = Math.min(200,Math.max(10, S.px*Math.exp(-e.deltaY*0.01))); z.oninput({target:z}); return; }
+  const canV = scroll.scrollHeight > scroll.clientHeight + 1;
+  if(!canV && Math.abs(e.deltaY) > Math.abs(e.deltaX)){ e.preventDefault(); scroll.scrollLeft += e.deltaY; }
+},{passive:false});
+
+// 패널 높이 끌기
+const panel = document.getElementById('panel'), win = document.getElementById('win'), splitter = document.getElementById('splitter');
+function setPanel(h){ const max = win.clientHeight - 44 - 120 - 7 - 26; panel.style.height = Math.max(110, Math.min(max, h))+'px'; updateDims(); }
+splitter.addEventListener('mousedown', e=>{
+  const startY = e.clientY, startH = panel.getBoundingClientRect().height;
+  splitter.classList.add('drag'); document.body.style.cursor='row-resize';
+  const move = ev=>setPanel(startH + (startY-ev.clientY));
+  const up = ()=>{ splitter.classList.remove('drag'); document.body.style.cursor=''; window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); };
+  window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+  e.preventDefault();
+});
+document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>setPanel(+b.dataset.h));
+function seg(id, fn){ document.querySelectorAll('#'+id+' button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed', x===b)); fn(b.dataset.v); }); }
+seg('fillMode', v=>{ S.fill=v; render(); });
+seg('dataMode', v=>{ S.overlap = v==='overlap'; lanes = layout(makeData(S.overlap)); render(); });
+render();
+</script>
+</body></html>
